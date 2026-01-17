@@ -26,6 +26,10 @@ param(
     [switch]$EnableShawdowCopies, #hidden share
     [swutch]$EnableAuditing #hidden share
 )
+##--
+#example 
+# .\Build-fileserver.ps1 -SDomainFqdn "contoso.local" -SNetBios "CONTOSO" -SFileServer "FS1" -nNamespaceName "SharedData" -DfsFolderName "Projects" -ShareName "Projects$" -DataPath "D:\Shares\Projects" -AdGroup "Contoso\Domain Users" -EnableShawdowCopies -EnableAuditing
+
 
 $errorActionPreference = "Stop"
 
