@@ -65,3 +65,72 @@ if(-not(Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
 } else {
     log "smb share $ShareName already exists"
 }
+
+get-smbshare -name $ShareName 
+get-smbshareaccess -name $ShareName
+
+# --
+# dfs namespace role 
+# --
+$dfsRoot = "\\$domainFqdn\$NamespaceName"
+log " ensuring dfs namespace role is inherited"
+
+if(-not(Get-WindowsFeature -Name FS-DFS-Namespace).Installed) {
+    log " installing dfs namespace role"
+    Install-WindowsFeature -Name FS-DFS-Namespace | out-null
+} else {
+    log " dfs namespace role already installed"
+}
+
+start-service dfs -ErrorAction SilentlyContinue
+
+# --
+# dfs folder target
+# --
+
+$dfsFolderPath = "$dfsroot\$DfsFolderName"
+$dfstarget  = "\\$SFileServer\$ShareName"
+log "creating dfs folder: $dfsFolderPath with target $dfstarget"
+
+if(-not(Get-DfsnFolder -Path $dfsFolderPath -ErrorAction SilentlyContinue)) {
+    New-DfsnFolder -Path $dfsFolderPath -TargetPath $dfstarget | out-null
+} else {
+    log "dfs folder $dfsFolderPath already exists"
+}
+
+get-dfsnfolder -path $dfsFolderPath
+
+# -- 
+# auditing
+# --
+if($EnableAuditing) {
+    log "enabling file system auditing on $DataPath"
+
+    # enable auditing via gpo
+    auditpol /set /subcategory:"File System" /success:enable /failure:enable | out-null
+
+    # set auditing on folder
+    $acl = Get-Acl $DataPath
+    $auditRule = New-Object System.Security.AccessControl.FileSystemAuditRule("EVERYONE","FullControl","ContainerInherit,ObjectInherit","None","Success,Failure")
+    $acl.AddAuditRule($auditRule)
+    Set-Acl -Path $DataPath -AclObject $acl
+
+    log "file system auditing enabled on $DataPath"
+}
+
+
+# --
+# shadow copies 
+# --
+if ($EnableShawdowCopies) {
+    log "enabling shadow copies on $DataPath"
+    vssadmin add shadowstorage /for=D: /on=D: /maxsize=10% | out-null
+    vssadmin list shadowstorage | out-null
+    log "shadow copies enabled on $DataPath"
+}# end of enable shadow copies
+
+# --
+# final validation
+#
+log "build complete"
+log "dfs folder: $dfsFolderPath"
