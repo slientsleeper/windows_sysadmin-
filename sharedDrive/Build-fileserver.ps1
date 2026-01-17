@@ -42,3 +42,26 @@ if (-not (test-path $DataPath)) {
     log "creating data folder: $Ddatapath"
     new-item -path $DataPath -itemtype directory | out-null
 }
+
+# --
+# ntfs permissions
+#
+log "setting ntfs permissions"
+
+icacls $DataPath /inheritance:d | out-null
+icacls $DataPath /grant: "SYSTEM:(OI)(CI)F" | out-null
+icacls $DataPath /grant: "BULTIN\Administrators:(OI)(CI)F" | out-null
+icacls $DataPath /grant: "$NetBIOS\$AdGroup:(OI)(CI)M" | out-null
+
+icacls $DataPath 
+
+# --
+# smb share 
+# 
+log "creating smb share: $ShareName"
+
+if(-not(Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue)) {
+    New-SmbShare -Name $ShareName -Path $DataPath -FullAccess "Authenticated Users" | out-null
+} else {
+    log "smb share $ShareName already exists"
+}
