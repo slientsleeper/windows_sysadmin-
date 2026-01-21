@@ -28,3 +28,32 @@ Domain controller creates backups and writes them to a secure share on the backu
     - system: fiull
 5. created smb share: \\backups\servertobackup
 6. installed windows server backup feature on server to backup
+7. tested connectivity to smb (tcp/4455)
+8. Run backups:
+     - full: wbadmin start backup -allcritical 
+     - Systems state: wbadmin start systemstatebackup
+ 9. Verified backups:
+    - wbadmin get versions
+    - confirmed windowsimage folder on backup server 
+
+## command used(key)
+
+### install wsb on server to backup
+install windowsfeature windows-server-backup -IncludeManagementTools '
+
+### run full backup
+wdbadmin start backup -backuptarget:\\backupserver\server_to_backup-backups
+
+### verify backups
+wbadmin get versions -backuTarget:\\backupserver\server_to_backups-backups
+
+## Notes / lessons learned 
+- do not back up a dc to itself; backups must servive a dc failure
+- system state is for ad/dns/sysvol recovery; full backups support bare-metal recovery 
+- monitoring matters; a backup with no alerting is effectively untrusted 
+
+## next enhancements 
+- add file server + dfs and test restore behavior 
+- add event-log based alering for backup failures 
+- compare native wsb
+
