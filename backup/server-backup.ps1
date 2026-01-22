@@ -45,3 +45,57 @@
         exit 1
     }
   }
+
+  function Ensure-Feature {
+     param([string]$name)
+     $f = get-windowsfeature -name $name -erroraction sto.\.git
+     if (-not $f.Installed) {
+        Install-WindowsFeature -name $name -IncludeManagementTools -erroraction stop | Out-Null
+     }
+  }# end of ensure function
+
+  function New-OrgGetFolder {
+    param([string]$path)
+    if (-not (Test-Path -Path $path)) {
+        New-Item -Path $path -ItemType Directory -ErrorAction Stop | Out-Null
+    }
+  }# end of get folder function
+
+  function Set-BackupNTFSPerms{
+    param(
+      [string]$path,
+      [string]$domainNeBios,
+      [string]$computerAccount
+    )
+
+    # remove inheritance and set explicit perms
+    & icacls $path /inheritance:r | Out-Null
+
+    # domain admins full, computer modify system full
+    & icacls $path /grant "$domainNeBios\Domain Admins:(OI)(CI)F" | Out-Null
+    & icacls $path /grant "$domainNeBios\computerAccount:(OI)(CI)M" | Out-Null
+    & icacls $path /grant  "SYSTEM:(OI)(CI)F" | Out-Null
+  }# end of set backup ntfs  
+
+
+  function Ensure-Smbshare{
+    param(
+      [string] $name,
+      [string] $path,
+      [string] $domainNeBios,
+      [string] $computerAccount
+    )
+
+    $existing = Get-SmbShare -Name $name -ErrorAction SilentlyContinue
+    if ($existing){
+      write-host " smb share $name already exists skipping creating"
+      return
+    }# end of if statement
+
+    New-SmbShare -name $name -path $path -FullAccess "$domainNeBios\Domain Admins","$domainNeBios\$computerAccount" -ErrorAction Stop | Out-Null
+  }#  end of smbshare function
+
+   function Enable-FileSharingfirewall{
+    # enable file and printer sharing firewall rule
+    Enable-NetFirewallRule -DisplayGroup "File and Printer Sharing" -ErrorAction Stop | Out-Null
+   }
