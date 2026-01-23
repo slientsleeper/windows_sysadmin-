@@ -122,3 +122,67 @@
       throw "smb access to $path failed: $_"
     }
    }# end of function test smb from d 
+
+function Run-Backup {
+  param(
+  [string] $backupTargetUnc,
+  [ValidateSet("Full","SystemState","Both")]
+  [string] $type
+  )
+  if ($type -eq "Full" -or $type -eq "Both"){
+    Write-Host "running full backup to $backupTargetUnc"
+    wbadmin start backup -backupTarget:$backupTargetUnc -allcritical -quiet -erroraction stop
+  }# end of if statement
+
+  if ($type -eq "SystemState" -or $type -eq "Both"){
+    Write-Host "running system state backup to $backupTargetUnc"
+    wbadmin start systemstatebackup -backupTarget:$backupTargetUnc -quiet -erroraction stop
+  }# end of if statement
+}# rnf of run backup function
+
+function Verify-Backup{
+  param(
+    [string] $backupTargetUnc
+  )
+  write-host " checking backup versions on $BackupTargetUnc"
+  & wbadmin start systemstatebackup -backupTarget:$backupTargetUnc -quiet
+}# end of verify backup function
+Require-Admin
+
+if($mode -eq "backupserver"){
+  write-host " === mode : backupserver (configure backup tagret) ==="
+
+  # ensure smb share is allowed on host firewall 
+  Enable-FileSharingfirewall
+
+  $backupRootPath = "$($backupDriverLetter):\backups"
+  $backupFolderPath = join-path $backupRootPath $backupFolder
+
+  New-OrgGetFolder -path $backupRootPath
+  New-OrgGetFolder -path $backupFolderPath
+
+  Set-BackupNTFSPerms -path $backupFolderPath -domainNeBios $doomainNeBios -computerAccount $SourceComputerAccount
+
+  Ensure-Smbshare -name $shareName -path $backupFolderPath -domainNeBios $doomainNeBios -computerAccount $SourceComputerAccount
+
+  write-host "Backup target ready:"
+  write-host " Folder: $backupFolderPath" 
+  write-host " Share: \\$backupServerName\$shareName"
+  Write-Host " next: run this script on domain in mode=domain to install wsb and run backups"
+  exit0  
+}# end of backup server
+
+if($mode -eq "alpha"){
+  write-host "== MODE: domain ( install wsb + run backups) ==="
+  Ensure-Feature -name "windows server backup "
+
+  $targetUnc = "\\$backupServerName\$shareName"
+
+  Test-SmbFromDC -servername $backupServerName -shareName $shareName
+  Run-Backup -backupTargetUnc $targetUnc -type $backupType
+  Verify-Backup -backupTargetUnc $targetUnc
+
+  write-host "done"
+  exit 0
+
+}
