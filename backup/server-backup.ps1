@@ -98,4 +98,27 @@
    function Enable-FileSharingfirewall{
     # enable file and printer sharing firewall rule
     Enable-NetFirewallRule -DisplayGroup "File and Printer Sharing" -ErrorAction Stop | Out-Null
-   }
+   }# end of enable firewall function
+
+   function Test-SmbFromDC{
+    param(
+    [string]$servername,
+    [string]$shareName
+    )
+    write-host "testing tcp/445 to $servername"
+    $tnc = test-connection -ComputerName $servername -Port 445
+    if (-not $tnc){
+      throw "tcp/445 test connection to $servername failed"
+    }# end of if statement
+    $path = "\\$servername\$shareName"
+    Write-Host "testing smb access to $path"
+    try]
+
+    {
+      $items = Get-ChildItem -Path $path -ErrorAction Stop
+      Write-Host "smb access to $path succeeded"
+    }
+    catch{
+      throw "smb access to $path failed: $_"
+    }
+   }# end of function test smb from d 
