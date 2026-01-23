@@ -17,6 +17,10 @@
 
 .notes
   run powershell as admin
+  how to run on backup server:
+    .\server-backup.ps1 -mode backupserver -doomainNeBios alpha -domainFQDN alpha.local -backupDriverLetter D -backupRoot D:\backups -backupFolder dc01 -shareName dc01$ -SourceComputerAccount dc01$ -backupServerName backup01 -backupType Both
+  how to run on domain controller to backup:
+  .\Setup-BackupLab.ps1 -Mode BK01 -DomainNetBIOS CODE -SourceComputerAccount "DC01$"
 #>
 
   [CmdletBinding()]
