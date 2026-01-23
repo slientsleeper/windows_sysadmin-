@@ -1,3 +1,4 @@
+ <#
  .synoopsis
  automated windows file server + dfs namespace build
 
@@ -13,12 +14,13 @@
 .notes
 run ad domain admin on the server hosting dfs 
 
+#>
 [CmdletBinding()]
 param(
     [parameter(Mandatory=$true)][string]$SDomainFqdn, #fqdn of domain
-    [parameter(Mandatory=$true)][string]$SNetBios, #code
+    [parameter(Mandatory=$true)][string]$SNetBios, #code name of domain example code.local
     [parameter(Mandatory=$true)][string]$SFileServer, #name of file server
-    [parameter(Mandatory=$true)][string]$nNamespaceName, #shares
+    [parameter(Mandatory=$true)][string]$NamespaceName, #shares
     [parameter(Mandatory=$true)][string]$DfsFolderName, #name of folder
     [parameter(Mandatory=$true)][string]$ShareName, #sharename
     [parameter(Mandatory=$true)][string]$DataPath, #path to folder
@@ -28,7 +30,7 @@ param(
 )
 ##--
 #example 
-# .\Build-fileserver.ps1 -SDomainFqdn "contoso.local" -SNetBios "CONTOSO" -SFileServer "FS1" -nNamespaceName "SharedData" -DfsFolderName "Projects" -ShareName "Projects$" -DataPath "D:\Shares\Projects" -AdGroup "Contoso\Domain Users" -EnableShawdowCopies -EnableAuditing
+# .\Build-fileserver.ps1 -SDomainFqdn "contoso.local" -SNetBios "CONTOSO" -SFileServer "FS1" -NamespaceName "SharedData" -DfsFolderName "Projects" -ShareName "Projects$" -DataPath "D:\Shares\Projects" -AdGroup "Contoso\Domain Users" -EnableShawdowCopies -EnableAuditing
 
 
 $errorActionPreference = "Stop"
@@ -55,7 +57,7 @@ log "setting ntfs permissions"
 icacls $DataPath /inheritance:d | out-null
 icacls $DataPath /grant: "SYSTEM:(OI)(CI)F" | out-null
 icacls $DataPath /grant: "BULTIN\Administrators:(OI)(CI)F" | out-null
-icacls $DataPath /grant: "$NetBIOS\$AdGroup:(OI)(CI)M" | out-null
+icacls $DataPath /grant "$NetBIOS\$AdGroup:(OI)(CI)M" | Out-Null
 
 icacls $DataPath 
 
@@ -76,7 +78,7 @@ get-smbshareaccess -name $ShareName
 # --
 # dfs namespace role 
 # --
-$dfsRoot = "\\$domainFqdn\$NamespaceName"
+
 log " ensuring dfs namespace role is inherited"
 
 if(-not(Get-WindowsFeature -Name FS-DFS-Namespace).Installed) {
@@ -87,6 +89,21 @@ if(-not(Get-WindowsFeature -Name FS-DFS-Namespace).Installed) {
 }
 
 start-service dfs -ErrorAction SilentlyContinue
+
+# ---------------------------
+# DFS Namespace
+# ---------------------------
+$DfsRoot = "\\$DomainFqdn\$NamespaceName"
+
+Log "Creating DFS Namespace: $DfsRoot"
+
+if (-not (Get-DfsnRoot -ErrorAction SilentlyContinue | Where-Object Path -eq $DfsRoot)) {
+  New-DfsnRoot `
+    -Path $DfsRoot `
+    -TargetPath "\\$FileServer\$NamespaceName" `
+    -Type DomainV2 | Out-Null
+}
+
 
 # --
 # dfs folder target
